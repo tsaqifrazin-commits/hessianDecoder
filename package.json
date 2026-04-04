@@ -1,0 +1,18 @@
+{
+  "name": "hessiandecoder",
+  "version": "1.0.0",
+  "description": "",
+  "main": "processor.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "csv-parser": "^3.2.0",
+    "csv-writer": "^1.6.0",
+    "hessian.js": "^2.11.0",
+    "zlib": "^1.0.5"
+  }
+}
