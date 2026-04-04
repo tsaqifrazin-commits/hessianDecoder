@@ -12,6 +12,7 @@
   "dependencies": {
     "csv-parser": "^3.2.0",
     "csv-writer": "^1.6.0",
+    "express": "^5.2.1",
     "hessian.js": "^2.11.0",
     "zlib": "^1.0.5"
   }
