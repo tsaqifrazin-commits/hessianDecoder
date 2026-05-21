@@ -198,6 +198,59 @@ function decodeHessianDeflation(base64Input) {
       return str;
     }
 
+    // --- Double: 'D' (0x44) ---
+    if (b === 0x44) {
+      const val = decompressed.readDoubleBE(pos + 1);
+      pos += 9;
+      return val;
+    }
+
+    // --- Typed Map: 'M' (0x4d) ---
+    // Similar to 'H', but contains a type definition first
+    if (b === 0x4d) {
+      pos += 1; // consume 'M'
+      
+      // Read the type string (usually a 't' 0x74 followed by 16-bit length)
+      if (decompressed[pos] === 0x74) {
+        pos += 1;
+        const tLen = decompressed.readUInt16BE(pos);
+        pos += 2;
+        const mapType = decompressed.subarray(pos, pos + tLen).toString('utf8');
+        pos += tLen;
+      }
+
+      const map = {};
+      while (pos < decompressed.length && decompressed[pos] !== 0x5a) { // 'Z' end
+        const key = readValue();
+        const val = readValue();
+        map[String(key)] = val;
+      }
+      pos += 1; // consume 'Z'
+      return map;
+    }
+
+    // --- List / Array: 'V' (0x56) ---
+    if (b === 0x56) {
+      pos += 1; // consume 'V'
+      
+      // Lists can optionally define a type 't'
+      if (decompressed[pos] === 0x74) {
+        pos += 1;
+        const tLen = decompressed.readUInt16BE(pos); pos += 2 + tLen;
+      }
+      // Lists can optionally define a length 'l'
+      if (decompressed[pos] === 0x6c) {
+        pos += 1 + 4; // consume 'l' and 4-byte int
+      }
+
+      const list = [];
+      while (pos < decompressed.length && decompressed[pos] !== 0x7a) { // 'z' end of list
+        list.push(readValue());
+      }
+      pos += 1; // consume 'z'
+      return list;
+    }
+
     throw new Error(
       `Unknown Hessian type marker 0x${b.toString(16)} at position ${pos} ` +
       `(context: ...${Array.from(decompressed.subarray(Math.max(0, pos - 3), pos + 4))
