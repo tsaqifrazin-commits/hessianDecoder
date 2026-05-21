@@ -59,6 +59,7 @@ app.post("/process-csv", upload.single("csvFile"), (req, res) => {
                     decodedValue = JSON.stringify(decodedObj);
                 } catch (error) {
                     decodedValue = "ERROR_DECODING";
+                    console.log(error)
                 }
             }
             row.decoded_info = decodedValue;
@@ -84,7 +85,7 @@ app.post("/process-csv", upload.single("csvFile"), (req, res) => {
 
                 res.download(outputFilePath, `processed_${req.file.originalname}`, (err) => {
                     if (err) console.error("❌ Error sending the file:", err);
-                    
+
                     // VERCEL FIX 3: Always clean up /tmp so Vercel doesn't run out of memory
                     fs.unlinkSync(inputFilePath);
                     fs.unlinkSync(outputFilePath);
