@@ -11,7 +11,7 @@ const app = express();
 const upload = multer({ dest: "/tmp/" });
 
 app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "index.html"));
+    res.sendFile(path.join(__dirname, "page.html"));
 });
 
 app.post("/process-csv", upload.single("csvFile"), (req, res) => {
