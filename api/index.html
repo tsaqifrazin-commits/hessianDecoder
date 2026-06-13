@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hessian CSV Decoder</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #000000;
+            --card-bg: #0a0a0a;
+            --border-color: #222222;
+            --text-main: #ededed;
+            --text-muted: #a1a1aa;
+            --primary: #ffffff;
+            --primary-hover: #e5e5e5;
+            --accent-purple: #333333;
+            --accent-cyan: #333333;
+            --accent-emerald: #333333;
+            --danger: #ef4444;
+            --code-bg: #111111;
+            
+            /* JSON syntax highlighting colors */
+            --sj-key: #f472b6;
+            --sj-string: #34d399;
+            --sj-number: #fb923c;
+            --sj-boolean: #60a5fa;
+            --sj-null: #9ca3af;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 2rem 1rem;
+            overflow-x: hidden;
+
+        }
+
+        /* App Layout */
+        .app-container {
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.025em;
+        }
+
+        /* Minimal Card styles */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 2.5rem;
+            transition: all 0.3s ease;
+        }
+
+        /* File Upload Zone */
+        .dropzone {
+            border: 2px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 0.75rem;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(255, 255, 255, 0.01);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dropzone:hover, .dropzone.dragover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.04);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.1) inset;
+        }
+
+        .dropzone.dragover {
+            transform: scale(1.01);
+        }
+
+        .upload-icon {
+            width: 4rem;
+            height: 4rem;
+            margin: 0 auto 1.5rem;
+            color: var(--text-muted);
+            transition: color 0.3s, transform 0.3s;
+        }
+
+        .dropzone:hover .upload-icon, .dropzone.dragover .upload-icon {
+            color: #a5b4fc;
+            transform: translateY(-4px);
+        }
+
+        .dropzone h3 {
+            font-size: 1.25rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .dropzone p {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .btn-select {
+            display: inline-block;
+            background: var(--primary);
+            color: #000;
+            font-weight: 500;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .btn-select:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-select:active {
+            transform: translateY(1px);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        /* Loading View */
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+            gap: 1.5rem;
+        }
+
+        .spinner {
+            width: 4rem;
+            height: 4rem;
+            border: 4px solid rgba(255, 255, 255, 0.05);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            position: relative;
+        }
+
+        .spinner::after {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: -4px;
+            right: -4px;
+            bottom: -4px;
+            border: 4px solid transparent;
+            border-right: 4px solid var(--accent-purple);
+            border-radius: 50%;
+            animation: spin 1.5s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1.125rem;
+            font-weight: 500;
+            color: #a5b4fc;
+            letter-spacing: 0.025em;
+        }
+
+        /* Error Banner */
+        .error-banner {
+            display: none;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+        }
+
+        .error-banner svg {
+            width: 1.25rem;
+            height: 1.25rem;
+            color: var(--danger);
+            flex-shrink: 0;
+        }
+
+        /* Success & Results Section */
+        .results-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1.5rem;
+        }
+
+        .file-summary {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .file-summary h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: white;
+            word-break: break-all;
+        }
+
+        .stats-badges {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-top: 0.25rem;
+        }
+
+        .stat-badge {
+            font-size: 0.75rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-weight: 500;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: var(--text-muted);
+        }
+
+        .stat-badge.success {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.2);
+            color: #6ee7b7;
+        }
+
+        .btn-reset {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .btn-reset:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Action/Download Buttons */
+        .download-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 600px) {
+            .download-actions {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .btn-download {
+            padding: 1rem 1.5rem;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            font-weight: 500;
+            font-size: 0.95rem;
+            color: var(--text-main);
+            background: var(--card-bg);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            transition: all 0.2s;
+        }
+
+        .btn-download:hover {
+            background: #111;
+            border-color: #444;
+        }
+
+        .btn-download svg {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+
+        /* Tabs Selection */
+        .tabs-header {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-top: 1rem;
+            gap: 1rem;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 500;
+            padding: 0.75rem 0.5rem;
+            cursor: pointer;
+            position: relative;
+            transition: color 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: white;
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--primary);
+            box-shadow: 0 0 10px var(--primary);
+        }
+
+        /* Tab Contents */
+        .tab-content {
+            display: none;
+            margin-top: 1rem;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* JSON Code Box */
+        .code-container {
+            position: relative;
+            background: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .btn-copy {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-copy:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .code-pre {
+            padding: 1.25rem;
+            overflow-x: auto;
+            max-height: 450px;
+            font-family: 'Fira Code', 'Courier New', Courier, monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* JSON Syntax Highlighting Styles */
+        .code-pre .key { color: var(--sj-key); font-weight: 500; }
+        .code-pre .string { color: var(--sj-string); }
+        .code-pre .number { color: var(--sj-number); }
+        .code-pre .boolean { color: var(--sj-boolean); }
+        .code-pre .null { color: var(--sj-null); }
+
+        .preview-alert {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(99, 102, 241, 0.05);
+            border: 1px solid rgba(99, 102, 241, 0.1);
+            color: #a5b4fc;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+        }
+
+        .btn-link {
+            background: transparent;
+            border: none;
+            color: #c084fc;
+            text-decoration: underline;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .btn-link:hover {
+            color: #e9d5ff;
+        }
+
+        /* Table Preview styles */
+        .table-wrapper {
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            background: rgba(0, 0, 0, 0.15);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+            text-align: left;
+        }
+
+        th {
+            background: rgba(0, 0, 0, 0.3);
+            font-weight: 600;
+            color: white;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .cell-expandable {
+            cursor: pointer;
+            color: #a5b4fc;
+            text-decoration: underline;
+        }
+
+        .cell-expandable:hover {
+            color: white;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .pagination-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-pag {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-main);
+            padding: 0.375rem 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-pag:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .btn-pag:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* Modal styling */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+
+        .modal-content {
+            background: #111827;
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            max-width: 650px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.8);
+            max-height: 80%;
+        }
+
+        .modal-header {
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-header h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: white;
+        }
+
+        .btn-close {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 1.5rem;
+            line-height: 1;
+            padding: 0.25rem;
+            transition: color 0.2s;
+        }
+
+        .btn-close:hover {
+            color: white;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .modal-body pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1rem;
+            border-radius: 0.375rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* Footer styling */
+        footer {
+            margin-top: 3rem;
+            text-align: center;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <h1>Hessian Decoder</h1>
+        </header>
+
+        <div id="error-banner" class="error-banner">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            <span id="error-message">An error occurred while uploading.</span>
+        </div>
+
+        <!-- 1. Upload View -->
+        <div id="upload-card" class="card">
+            <div id="dropzone" class="dropzone">
+                <input type="file" id="file-input" class="file-input" accept=".csv" />
+                
+                <!-- Cloud Upload Icon -->
+                <svg class="upload-icon" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z"></path>
+                </svg>
+
+                <h3>Drag & Drop your input CSV file here</h3>
+                <p>or click to browse your computer</p>
+                
+                <button type="button" class="btn-select" id="btn-browse">Select CSV File</button>
+            </div>
+        </div>
+
+        <!-- 2. Loading View -->
+        <div id="loading-card" class="card" style="display: none;">
+            <div class="loading-container">
+                <div class="spinner"></div>
+                <div class="loading-text">Processing...</div>
+            </div>
+        </div>
+
+        <!-- 3. Results View -->
+        <div id="result-card" class="card" style="display: none;">
+            <div class="results-container">
+                
+                <!-- File Stats & Header -->
+                <div class="results-header">
+                    <div class="file-summary">
+                        <h2 id="summary-filename">processed_data.csv</h2>
+                        <div class="stats-badges">
+                            <span class="stat-badge success" id="summary-rows">0 records</span>
+                            <span class="stat-badge" id="summary-size">Size: Unknown</span>
+                        </div>
+                    </div>
+                    
+                    <button class="btn-reset" id="btn-reset">
+                        <!-- Reset Icon -->
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                        Start Over
+                    </button>
+                </div>
+
+                <!-- Download Options Panel -->
+                <div class="download-actions">
+                    <button class="btn-download json" id="btn-download-json">
+                        <!-- Braces Icon -->
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5"></path>
+                        </svg>
+                        Download JSON File (.json)
+                    </button>
+                    <button class="btn-download csv" id="btn-download-csv">
+                        <!-- Table Icon -->
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 5.25h16.5m-16.5 4.5h16.5m-16.5 4.5h16.5m-16.5 4.5h16.5"></path>
+                        </svg>
+                        Download CSV File (.csv)
+                    </button>
+                </div>
+
+                <!-- Tabs Selection -->
+                <div class="tabs-header">
+                    <button class="tab-btn active" id="tab-btn-json" data-tab="json">JSON Preview</button>
+                    <button class="tab-btn" id="tab-btn-grid" data-tab="grid">Data Grid View</button>
+                </div>
+
+                <!-- Tab: JSON Preview -->
+                <div class="tab-content active" id="tab-json">
+                    <div class="preview-alert" id="preview-banner">
+                        <span>Showing preview of the first <strong id="preview-count">20</strong> records to ensure smooth browser rendering.</span>
+                        <button class="btn-link" id="btn-show-all">Load All Records</button>
+                    </div>
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span>PREVIEW OBJECT ARRAY</span>
+                            <button class="btn-copy" id="btn-copy-json">Copy JSON</button>
+                        </div>
+                        <pre class="code-pre"><code id="code-output">Loading preview...</code></pre>
+                    </div>
+                </div>
+
+                <!-- Tab: Table/Grid -->
+                <div class="tab-content" id="tab-grid">
+                    <div class="table-wrapper">
+                        <table>
+                            <thead id="table-head">
+                                <!-- Dynamically populated headers -->
+                            </thead>
+                            <tbody id="table-body">
+                                <!-- Dynamically populated rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="pagination">
+                        <span id="pagination-info">Showing 1 to 10 of 0 records</span>
+                        <div class="pagination-actions">
+                            <button class="btn-pag" id="btn-pag-prev" disabled>Previous</button>
+                            <button class="btn-pag" id="btn-pag-next" disabled>Next</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <footer>
+            Hessian CSV Decoder &copy; 2026. Made with ❤️ for fast data transformations.
+        </footer>
+    </div>
+
+    <!-- Collapsible Detail Modal for JSON cells -->
+    <div id="detail-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Cell Detail View</h3>
+                <button class="btn-close" id="btn-close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <pre><code id="modal-code">Empty</code></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Frontend logic -->
+    <script>
+        // Data variables
+        let processedData = [];
+        let originalFilename = '';
+        let originalSize = 0;
+        let previewLimit = 20;
+        let gridCurrentPage = 1;
+        const gridPageSize = 10;
+        
+        // DOM Elements
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('file-input');
+        const btnBrowse = document.getElementById('btn-browse');
+        const uploadCard = document.getElementById('upload-card');
+        const loadingCard = document.getElementById('loading-card');
+        const resultCard = document.getElementById('result-card');
+        const errorBanner = document.getElementById('error-banner');
+        const errorMessage = document.getElementById('error-message');
+        const btnReset = document.getElementById('btn-reset');
+        
+        // Stats
+        const summaryFilename = document.getElementById('summary-filename');
+        const summaryRows = document.getElementById('summary-rows');
+        const summarySize = document.getElementById('summary-size');
+        
+        // Downloads
+        const btnDownloadJson = document.getElementById('btn-download-json');
+        const btnDownloadCsv = document.getElementById('btn-download-csv');
+        
+        // Tabs
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        // JSON Preview tab
+        const codeOutput = document.getElementById('code-output');
+        const previewCount = document.getElementById('preview-count');
+        const previewBanner = document.getElementById('preview-banner');
+        const btnShowAll = document.getElementById('btn-show-all');
+        const btnCopyJson = document.getElementById('btn-copy-json');
+        
+        // Table Preview tab
+        const tableHead = document.getElementById('table-head');
+        const tableBody = document.getElementById('table-body');
+        const paginationInfo = document.getElementById('pagination-info');
+        const btnPagPrev = document.getElementById('btn-pag-prev');
+        const btnPagNext = document.getElementById('btn-pag-next');
+        
+        // Modal
+        const detailModal = document.getElementById('detail-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalCode = document.getElementById('modal-code');
+        const btnCloseModal = document.getElementById('btn-close-modal');
+
+        // Drag & Drop event handlers
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.add('dragover');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.remove('dragover');
+            }, false);
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files && files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+
+        btnBrowse.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        // Start processing the file
+        function handleFileSelect(file) {
+            if (!file.name.toLowerCase().endsWith('.csv')) {
+                showError('Please upload a valid CSV file (.csv).');
+                return;
+            }
+            
+            originalFilename = file.name;
+            originalSize = file.size;
+            
+            uploadFile(file);
+        }
+
+        // Show/Hide error
+        function showError(msg) {
+            errorMessage.textContent = msg;
+            errorBanner.style.display = 'flex';
+            setTimeout(() => {
+                errorBanner.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+
+        function clearError() {
+            errorBanner.style.display = 'none';
+        }
+
+        // AJAX upload using fetch
+        function uploadFile(file) {
+            clearError();
+            
+            // Switch views
+            uploadCard.style.display = 'none';
+            loadingCard.style.display = 'flex';
+            
+            const formData = new FormData();
+            formData.append('csvFile', file);
+            
+            fetch('/process-csv', {
+                method: 'POST',
+                body: formData
+            })
+            .then(async (response) => {
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Server error while processing CSV.');
+                }
+                return data;
+            })
+            .then((res) => {
+                if (res.success) {
+                    processedData = res.data;
+                    displayResults();
+                } else {
+                    throw new Error(res.error || 'Failed to process CSV file.');
+                }
+            })
+            .catch((err) => {
+                console.error(err);
+                showError(err.message || 'An error occurred during file upload/parsing.');
+                // Return to upload state
+                loadingCard.style.display = 'none';
+                uploadCard.style.display = 'block';
+            });
+        }
+
+        // Display parsed results
+        function displayResults() {
+            loadingCard.style.display = 'none';
+            resultCard.style.display = 'block';
+            
+            // Set header stats
+            summaryFilename.textContent = originalFilename;
+            summaryRows.textContent = `${processedData.length} records processed`;
+            summarySize.textContent = `Size: ${formatBytes(originalSize)}`;
+            
+            // Reset JSON preview options
+            previewLimit = 20;
+            previewBanner.style.display = processedData.length > 20 ? 'flex' : 'none';
+            previewCount.textContent = Math.min(20, processedData.length);
+            
+            // Render JSON
+            renderJSONPreview();
+            
+            // Setup & Render Data Grid
+            gridCurrentPage = 1;
+            renderDataGrid();
+        }
+
+        // Format bytes utility
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Helper to perform syntax highlighting on JSON string
+        function syntaxHighlight(json) {
+            if (typeof json !== 'string') {
+                json = JSON.stringify(json, null, 2);
+            }
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g, function (match) {
+                let cls = 'number';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'key';
+                    } else {
+                        cls = 'string';
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'boolean';
+                } else if (/null/.test(match)) {
+                    cls = 'null';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+        }
+
+        // Render JSON preview
+        function renderJSONPreview() {
+            let dataSlice = processedData;
+            if (processedData.length > previewLimit) {
+                dataSlice = processedData.slice(0, previewLimit);
+            }
+            
+            // Highlight and show
+            const formatted = JSON.stringify(dataSlice, null, 2);
+            codeOutput.innerHTML = syntaxHighlight(formatted);
+        }
+
+        // Tab Selection Event Listeners
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                tabBtns.forEach(b => b.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                
+                btn.classList.add('active');
+                const targetTab = btn.getAttribute('data-tab');
+                document.getElementById(`tab-${targetTab}`).classList.add('active');
+            });
+        });
+
+        // Show all JSON records
+        btnShowAll.addEventListener('click', () => {
+            previewLimit = processedData.length;
+            previewBanner.style.display = 'none';
+            codeOutput.innerHTML = 'Rendering all records... Please wait...';
+            setTimeout(() => {
+                renderJSONPreview();
+            }, 50);
+        });
+
+        // Copy JSON to clipboard
+        btnCopyJson.addEventListener('click', () => {
+            const formatted = JSON.stringify(processedData, null, 2);
+            navigator.clipboard.writeText(formatted).then(() => {
+                const origText = btnCopyJson.textContent;
+                btnCopyJson.textContent = 'Copied!';
+                btnCopyJson.style.background = 'rgba(16, 185, 129, 0.2)';
+                btnCopyJson.style.color = '#6ee7b7';
+                setTimeout(() => {
+                    btnCopyJson.textContent = origText;
+                    btnCopyJson.style.background = '';
+                    btnCopyJson.style.color = '';
+                }, 2000);
+            }).catch(err => {
+                alert('Failed to copy JSON. Please select and copy manually.');
+            });
+        });
+
+        // Render Data Grid (Table with pagination)
+        function renderDataGrid() {
+            if (processedData.length === 0) {
+                tableHead.innerHTML = '';
+                tableBody.innerHTML = '<tr><td colspan="5">No records found.</td></tr>';
+                return;
+            }
+
+            // Detect headers
+            const keys = Object.keys(processedData[0]);
+            
+            // Build table header
+            tableHead.innerHTML = `
+                <tr>
+                    ${keys.map(key => `<th>${key}</th>`).join('')}
+                </tr>
+            `;
+
+            // Build table body rows for the current page
+            const startIndex = (gridCurrentPage - 1) * gridPageSize;
+            const endIndex = Math.min(startIndex + gridPageSize, processedData.length);
+            const pageData = processedData.slice(startIndex, endIndex);
+
+            let bodyHtml = '';
+            pageData.forEach((row, rIdx) => {
+                bodyHtml += '<tr>';
+                keys.forEach(key => {
+                    const val = row[key];
+                    let displayVal = '';
+                    
+                    if (val === null || val === undefined) {
+                        displayVal = '<span class="null">null</span>';
+                    } else if (typeof val === 'object' || (typeof val === 'string' && val.startsWith('{') && val.endsWith('}')) || (typeof val === 'string' && val.startsWith('[') && val.endsWith(']'))) {
+                        // Expandable JSON cells
+                        let textPreview = typeof val === 'object' ? JSON.stringify(val) : val;
+                        if (textPreview.length > 50) {
+                            textPreview = textPreview.substring(0, 47) + '...';
+                        }
+                        displayVal = `<span class="cell-expandable" data-row="${startIndex + rIdx}" data-col="${key}">${escapeHtml(textPreview)}</span>`;
+                    } else {
+                        displayVal = escapeHtml(String(val));
+                    }
+                    
+                    bodyHtml += `<td>${displayVal}</td>`;
+                });
+                bodyHtml += '</tr>';
+            });
+            tableBody.innerHTML = bodyHtml;
+
+            // Handle expandable cells click
+            tableBody.querySelectorAll('.cell-expandable').forEach(span => {
+                span.addEventListener('click', (e) => {
+                    const rowIdx = parseInt(e.target.getAttribute('data-row'));
+                    const colKey = e.target.getAttribute('data-col');
+                    let rawVal = processedData[rowIdx][colKey];
+                    
+                    if (typeof rawVal === 'string') {
+                        try {
+                            rawVal = JSON.parse(rawVal);
+                        } catch (e) {}
+                    }
+                    
+                    const prettyJson = JSON.stringify(rawVal, null, 2);
+                    modalTitle.textContent = `Column "${colKey}" Detail (Row ${rowIdx + 1})`;
+                    modalCode.innerHTML = syntaxHighlight(prettyJson);
+                    detailModal.style.display = 'flex';
+                });
+            });
+
+            // Update pagination status
+            paginationInfo.textContent = `Showing ${startIndex + 1} to ${endIndex} of ${processedData.length} records`;
+            btnPagPrev.disabled = gridCurrentPage === 1;
+            btnPagNext.disabled = endIndex >= processedData.length;
+        }
+
+        // Pagination buttons handlers
+        btnPagPrev.addEventListener('click', () => {
+            if (gridCurrentPage > 1) {
+                gridCurrentPage--;
+                renderDataGrid();
+            }
+        });
+
+        btnPagNext.addEventListener('click', () => {
+            const maxPage = Math.ceil(processedData.length / gridPageSize);
+            if (gridCurrentPage < maxPage) {
+                gridCurrentPage++;
+                renderDataGrid();
+            }
+        });
+
+        // Close Modal
+        btnCloseModal.addEventListener('click', () => {
+            detailModal.style.display = 'none';
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target === detailModal) {
+                detailModal.style.display = 'none';
+            }
+        });
+
+        // HTML escaping utility
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Reset App State
+        btnReset.addEventListener('click', () => {
+            processedData = [];
+            originalFilename = '';
+            originalSize = 0;
+            fileInput.value = '';
+            
+            resultCard.style.display = 'none';
+            loadingCard.style.display = 'none';
+            uploadCard.style.display = 'block';
+            clearError();
+            
+            // Reset tab button states
+            tabBtns.forEach(btn => btn.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            document.getElementById('tab-btn-json').classList.add('active');
+            document.getElementById('tab-json').classList.add('active');
+        });
+
+        // Client-side JSON file download
+        btnDownloadJson.addEventListener('click', () => {
+            if (!processedData.length) return;
+            
+            const jsonString = JSON.stringify(processedData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
+            
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            
+            const nameWithoutExt = originalFilename.substring(0, originalFilename.lastIndexOf('.')) || originalFilename;
+            link.setAttribute('href', url);
+            link.setAttribute('download', `decoded_${nameWithoutExt}.json`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        // Client-side CSV file download
+        btnDownloadCsv.addEventListener('click', () => {
+            if (!processedData.length) return;
+            
+            const csvContent = convertToCSV(processedData);
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            
+            const nameWithoutExt = originalFilename.substring(0, originalFilename.lastIndexOf('.')) || originalFilename;
+            link.setAttribute('href', url);
+            link.setAttribute('download', `decoded_${nameWithoutExt}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        // Helper to convert JSON array to CSV format
+        function convertToCSV(objArray) {
+            if (!objArray || !objArray.length) return '';
+            
+            const keys = Object.keys(objArray[0]);
+            
+            const csvRows = [];
+            
+            // Header Row
+            csvRows.push(keys.join(','));
+            
+            // Body Rows
+            objArray.forEach(row => {
+                const values = keys.map(key => {
+                    const val = row[key];
+                    let strVal = '';
+                    
+                    if (val === null || val === undefined) {
+                        strVal = '';
+                    } else if (typeof val === 'object') {
+                        strVal = JSON.stringify(val);
+                    } else {
+                        strVal = String(val);
+                    }
+                    
+                    // Escape double quotes and enclose string if it contains commas, newlines, or quotes
+                    const escaped = strVal.replace(/"/g, '""');
+                    if (escaped.includes(',') || escaped.includes('"') || escaped.includes('\n') || escaped.includes('\r')) {
+                        return `"${escaped}"`;
+                    }
+                    return escaped;
+                });
+                csvRows.push(values.join(','));
+            });
+            
+            return csvRows.join('\r\n');
+        }
+    </script>
+</body>
+</html>
