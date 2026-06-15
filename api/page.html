@@ -8,6 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <!-- PapaParse for Client-Side CSV Parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         :root {
             --bg-color: #000000;
@@ -882,42 +884,84 @@
             errorBanner.style.display = 'none';
         }
 
-        // AJAX upload using fetch
+        // AJAX upload using fetch in batches via PapaParse
         function uploadFile(file) {
             clearError();
             
             // Switch views
             uploadCard.style.display = 'none';
             loadingCard.style.display = 'flex';
+            document.querySelector('.loading-text').textContent = 'Parsing CSV...';
             
-            const formData = new FormData();
-            formData.append('csvFile', file);
-            
-            fetch('/process-csv', {
-                method: 'POST',
-                body: formData
-            })
-            .then(async (response) => {
-                const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.error || 'Server error while processing CSV.');
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: async function(results) {
+                    const rows = results.data;
+                    if (rows.length === 0) {
+                        showError('The uploaded CSV is empty or invalid.');
+                        loadingCard.style.display = 'none';
+                        uploadCard.style.display = 'block';
+                        return;
+                    }
+
+                    const batchSize = 10000;
+                    
+                    document.querySelector('.loading-text').textContent = `Preparing to process ${rows.length} records...`;
+                    
+                    try {
+                        const promises = [];
+                        let completedBatches = 0;
+                        const totalBatches = Math.ceil(rows.length / batchSize);
+
+                        for (let i = 0; i < rows.length; i += batchSize) {
+                            const batch = rows.slice(i, i + batchSize);
+                            
+                            const promise = fetch('/process-batch', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(batch)
+                            })
+                            .then(async (response) => {
+                                const data = await response.json();
+                                if (!response.ok || !data.success) {
+                                    throw new Error(data.error || 'Server error while processing CSV batch.');
+                                }
+                                completedBatches++;
+                                document.querySelector('.loading-text').textContent = `Processed ${completedBatches} of ${totalBatches} batches...`;
+                                return data.data;
+                            });
+                            
+                            promises.push(promise);
+                        }
+                        
+                        const resultsArray = await Promise.all(promises);
+                        
+                        let allProcessed = [];
+                        resultsArray.forEach(batchResult => {
+                            allProcessed = allProcessed.concat(batchResult);
+                        });
+                        
+                        processedData = allProcessed;
+                        document.querySelector('.loading-text').textContent = 'Processing...'; // Reset
+                        displayResults();
+                    } catch (err) {
+                        console.error(err);
+                        showError(err.message || 'An error occurred during batch processing.');
+                        document.querySelector('.loading-text').textContent = 'Processing...'; // Reset
+                        loadingCard.style.display = 'none';
+                        uploadCard.style.display = 'block';
+                    }
+                },
+                error: function(err) {
+                    console.error("PapaParse error:", err);
+                    showError('Failed to parse the CSV file.');
+                    document.querySelector('.loading-text').textContent = 'Processing...'; // Reset
+                    loadingCard.style.display = 'none';
+                    uploadCard.style.display = 'block';
                 }
-                return data;
-            })
-            .then((res) => {
-                if (res.success) {
-                    processedData = res.data;
-                    displayResults();
-                } else {
-                    throw new Error(res.error || 'Failed to process CSV file.');
-                }
-            })
-            .catch((err) => {
-                console.error(err);
-                showError(err.message || 'An error occurred during file upload/parsing.');
-                // Return to upload state
-                loadingCard.style.display = 'none';
-                uploadCard.style.display = 'block';
             });
         }
 
