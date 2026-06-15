@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +8,9 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Fira+Code:wght@400;500&display=swap"
+        rel="stylesheet">
     <!-- PapaParse for Client-Side CSV Parsing -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
@@ -24,7 +27,7 @@
             --accent-emerald: #333333;
             --danger: #ef4444;
             --code-bg: #111111;
-            
+
             /* JSON syntax highlighting colors */
             --sj-key: #f472b6;
             --sj-string: #34d399;
@@ -97,7 +100,8 @@
             overflow: hidden;
         }
 
-        .dropzone:hover, .dropzone.dragover {
+        .dropzone:hover,
+        .dropzone.dragover {
             border-color: var(--primary);
             background: rgba(99, 102, 241, 0.04);
             box-shadow: 0 0 20px rgba(99, 102, 241, 0.1) inset;
@@ -115,7 +119,8 @@
             transition: color 0.3s, transform 0.3s;
         }
 
-        .dropzone:hover .upload-icon, .dropzone.dragover .upload-icon {
+        .dropzone:hover .upload-icon,
+        .dropzone.dragover .upload-icon {
             color: #a5b4fc;
             transform: translateY(-4px);
         }
@@ -190,8 +195,13 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .loading-text {
@@ -433,11 +443,26 @@
         }
 
         /* JSON Syntax Highlighting Styles */
-        .code-pre .key { color: var(--sj-key); font-weight: 500; }
-        .code-pre .string { color: var(--sj-string); }
-        .code-pre .number { color: var(--sj-number); }
-        .code-pre .boolean { color: var(--sj-boolean); }
-        .code-pre .null { color: var(--sj-null); }
+        .code-pre .key {
+            color: var(--sj-key);
+            font-weight: 500;
+        }
+
+        .code-pre .string {
+            color: var(--sj-string);
+        }
+
+        .code-pre .number {
+            color: var(--sj-number);
+        }
+
+        .code-pre .boolean {
+            color: var(--sj-boolean);
+        }
+
+        .code-pre .null {
+            color: var(--sj-null);
+        }
 
         .preview-alert {
             display: flex;
@@ -630,6 +655,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="app-container">
         <header>
@@ -637,7 +663,12 @@
         </header>
 
         <div id="error-banner" class="error-banner">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
             <span id="error-message">An error occurred while uploading.</span>
         </div>
 
@@ -645,15 +676,18 @@
         <div id="upload-card" class="card">
             <div id="dropzone" class="dropzone">
                 <input type="file" id="file-input" class="file-input" accept=".csv" />
-                
+
                 <!-- Cloud Upload Icon -->
-                <svg class="upload-icon" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z"></path>
+                <svg class="upload-icon" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z">
+                    </path>
                 </svg>
 
                 <h3>Drag & Drop your input CSV file here</h3>
                 <p>or click to browse your computer</p>
-                
+
                 <button type="button" class="btn-select" id="btn-browse">Select CSV File</button>
             </div>
         </div>
@@ -669,7 +703,7 @@
         <!-- 3. Results View -->
         <div id="result-card" class="card" style="display: none;">
             <div class="results-container">
-                
+
                 <!-- File Stats & Header -->
                 <div class="results-header">
                     <div class="file-summary">
@@ -679,10 +713,13 @@
                             <span class="stat-badge" id="summary-size">Size: Unknown</span>
                         </div>
                     </div>
-                    
+
                     <button class="btn-reset" id="btn-reset">
                         <!-- Reset Icon -->
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                        </svg>
                         Start Over
                     </button>
                 </div>
@@ -691,15 +728,19 @@
                 <div class="download-actions">
                     <button class="btn-download json" id="btn-download-json">
                         <!-- Braces Icon -->
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5"></path>
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5"></path>
                         </svg>
                         Download JSON File (.json)
                     </button>
                     <button class="btn-download csv" id="btn-download-csv">
                         <!-- Table Icon -->
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 5.25h16.5m-16.5 4.5h16.5m-16.5 4.5h16.5m-16.5 4.5h16.5"></path>
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M3.75 5.25h16.5m-16.5 4.5h16.5m-16.5 4.5h16.5m-16.5 4.5h16.5"></path>
                         </svg>
                         Download CSV File (.csv)
                     </button>
@@ -714,7 +755,8 @@
                 <!-- Tab: JSON Preview -->
                 <div class="tab-content active" id="tab-json">
                     <div class="preview-alert" id="preview-banner">
-                        <span>Showing preview of the first <strong id="preview-count">20</strong> records to ensure smooth browser rendering.</span>
+                        <span>Showing preview of the first <strong id="preview-count">20</strong> records to ensure
+                            smooth browser rendering.</span>
                         <button class="btn-link" id="btn-show-all">Load All Records</button>
                     </div>
                     <div class="code-container">
@@ -738,7 +780,7 @@
                             </tbody>
                         </table>
                     </div>
-                    
+
                     <div class="pagination">
                         <span id="pagination-info">Showing 1 to 10 of 0 records</span>
                         <div class="pagination-actions">
@@ -778,7 +820,7 @@
         let previewLimit = 20;
         let gridCurrentPage = 1;
         const gridPageSize = 10;
-        
+
         // DOM Elements
         const dropzone = document.getElementById('dropzone');
         const fileInput = document.getElementById('file-input');
@@ -789,34 +831,34 @@
         const errorBanner = document.getElementById('error-banner');
         const errorMessage = document.getElementById('error-message');
         const btnReset = document.getElementById('btn-reset');
-        
+
         // Stats
         const summaryFilename = document.getElementById('summary-filename');
         const summaryRows = document.getElementById('summary-rows');
         const summarySize = document.getElementById('summary-size');
-        
+
         // Downloads
         const btnDownloadJson = document.getElementById('btn-download-json');
         const btnDownloadCsv = document.getElementById('btn-download-csv');
-        
+
         // Tabs
         const tabBtns = document.querySelectorAll('.tab-btn');
         const tabContents = document.querySelectorAll('.tab-content');
-        
+
         // JSON Preview tab
         const codeOutput = document.getElementById('code-output');
         const previewCount = document.getElementById('preview-count');
         const previewBanner = document.getElementById('preview-banner');
         const btnShowAll = document.getElementById('btn-show-all');
         const btnCopyJson = document.getElementById('btn-copy-json');
-        
+
         // Table Preview tab
         const tableHead = document.getElementById('table-head');
         const tableBody = document.getElementById('table-body');
         const paginationInfo = document.getElementById('pagination-info');
         const btnPagPrev = document.getElementById('btn-pag-prev');
         const btnPagNext = document.getElementById('btn-pag-next');
-        
+
         // Modal
         const detailModal = document.getElementById('detail-modal');
         const modalTitle = document.getElementById('modal-title');
@@ -864,10 +906,10 @@
                 showError('Please upload a valid CSV file (.csv).');
                 return;
             }
-            
+
             originalFilename = file.name;
             originalSize = file.size;
-            
+
             uploadFile(file);
         }
 
@@ -887,16 +929,16 @@
         // AJAX upload using fetch in batches via PapaParse
         function uploadFile(file) {
             clearError();
-            
+
             // Switch views
             uploadCard.style.display = 'none';
             loadingCard.style.display = 'flex';
             document.querySelector('.loading-text').textContent = 'Parsing CSV...';
-            
+
             Papa.parse(file, {
                 header: true,
                 skipEmptyLines: true,
-                complete: async function(results) {
+                complete: async function (results) {
                     const rows = results.data;
                     if (rows.length === 0) {
                         showError('The uploaded CSV is empty or invalid.');
@@ -905,62 +947,67 @@
                         return;
                     }
 
-                    // Reduced batch size from 10000 to 2000. 
-                    // 10,000 rows was creating a JSON string larger than 4MB!
                     const batchSize = 2000;
-                    
-                    document.querySelector('.loading-text').textContent = `Preparing to process ${rows.length} records...`;
-                    
-                    try {
-                        const promises = [];
-                        let completedBatches = 0;
-                        const totalBatches = Math.ceil(rows.length / batchSize);
+                    const CONCURRENCY = 10; // max parallel calls at once
 
+                    document.querySelector('.loading-text').textContent = `Preparing to process ${rows.length} records...`;
+
+                    try {
+                        // Split into batches
+                        const batches = [];
                         for (let i = 0; i < rows.length; i += batchSize) {
-                            const batch = rows.slice(i, i + batchSize);
-                            
-                            const promise = fetch('/process-batch', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify(batch)
-                            })
-                            .then(async (response) => {
-                                const data = await response.json();
-                                if (!response.ok || !data.success) {
-                                    throw new Error(data.error || 'Server error while processing CSV batch.');
-                                }
-                                completedBatches++;
-                                document.querySelector('.loading-text').textContent = `Processed ${completedBatches} of ${totalBatches} batches...`;
-                                return data.data;
-                            });
-                            
-                            promises.push(promise);
+                            batches.push(rows.slice(i, i + batchSize));
                         }
-                        
-                        const resultsArray = await Promise.all(promises);
-                        
+
+                        const totalBatches = batches.length;
+                        let completedBatches = 0;
                         let allProcessed = [];
-                        resultsArray.forEach(batchResult => {
-                            allProcessed = allProcessed.concat(batchResult);
-                        });
-                        
+
+                        // Process in groups of CONCURRENCY
+                        for (let i = 0; i < batches.length; i += CONCURRENCY) {
+                            const group = batches.slice(i, i + CONCURRENCY);
+
+                            const promises = group.map(batch =>
+                                fetch('/process-batch', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(batch)
+                                })
+                                    .then(async (response) => {
+                                        const data = await response.json();
+                                        if (!response.ok || !data.success) {
+                                            throw new Error(data.error || 'Server error while processing CSV batch.');
+                                        }
+                                        completedBatches++;
+                                        document.querySelector('.loading-text').textContent =
+                                            `Processed ${completedBatches} of ${totalBatches} batches...`;
+                                        return data.data;
+                                    })
+                            );
+
+                            // Wait for this group of 10 to finish before firing the next group
+                            const groupResults = await Promise.all(promises);
+                            groupResults.forEach(batchResult => {
+                                allProcessed = allProcessed.concat(batchResult);
+                            });
+                        }
+
                         processedData = allProcessed;
-                        document.querySelector('.loading-text').textContent = 'Processing...'; // Reset
+                        document.querySelector('.loading-text').textContent = 'Processing...';
                         displayResults();
+
                     } catch (err) {
                         console.error(err);
                         showError(err.message || 'An error occurred during batch processing.');
-                        document.querySelector('.loading-text').textContent = 'Processing...'; // Reset
+                        document.querySelector('.loading-text').textContent = 'Processing...';
                         loadingCard.style.display = 'none';
                         uploadCard.style.display = 'block';
                     }
                 },
-                error: function(err) {
+                error: function (err) {
                     console.error("PapaParse error:", err);
                     showError('Failed to parse the CSV file.');
-                    document.querySelector('.loading-text').textContent = 'Processing...'; // Reset
+                    document.querySelector('.loading-text').textContent = 'Processing...';
                     loadingCard.style.display = 'none';
                     uploadCard.style.display = 'block';
                 }
@@ -971,20 +1018,20 @@
         function displayResults() {
             loadingCard.style.display = 'none';
             resultCard.style.display = 'block';
-            
+
             // Set header stats
             summaryFilename.textContent = originalFilename;
             summaryRows.textContent = `${processedData.length} records processed`;
             summarySize.textContent = `Size: ${formatBytes(originalSize)}`;
-            
+
             // Reset JSON preview options
             previewLimit = 20;
             previewBanner.style.display = processedData.length > 20 ? 'flex' : 'none';
             previewCount.textContent = Math.min(20, processedData.length);
-            
+
             // Render JSON
             renderJSONPreview();
-            
+
             // Setup & Render Data Grid
             gridCurrentPage = 1;
             renderDataGrid();
@@ -1028,7 +1075,7 @@
             if (processedData.length > previewLimit) {
                 dataSlice = processedData.slice(0, previewLimit);
             }
-            
+
             // Highlight and show
             const formatted = JSON.stringify(dataSlice, null, 2);
             codeOutput.innerHTML = syntaxHighlight(formatted);
@@ -1039,7 +1086,7 @@
             btn.addEventListener('click', () => {
                 tabBtns.forEach(b => b.classList.remove('active'));
                 tabContents.forEach(c => c.classList.remove('active'));
-                
+
                 btn.classList.add('active');
                 const targetTab = btn.getAttribute('data-tab');
                 document.getElementById(`tab-${targetTab}`).classList.add('active');
@@ -1084,7 +1131,7 @@
 
             // Detect headers
             const keys = Object.keys(processedData[0]);
-            
+
             // Build table header
             tableHead.innerHTML = `
                 <tr>
@@ -1103,7 +1150,7 @@
                 keys.forEach(key => {
                     const val = row[key];
                     let displayVal = '';
-                    
+
                     if (val === null || val === undefined) {
                         displayVal = '<span class="null">null</span>';
                     } else if (typeof val === 'object' || (typeof val === 'string' && val.startsWith('{') && val.endsWith('}')) || (typeof val === 'string' && val.startsWith('[') && val.endsWith(']'))) {
@@ -1116,7 +1163,7 @@
                     } else {
                         displayVal = escapeHtml(String(val));
                     }
-                    
+
                     bodyHtml += `<td>${displayVal}</td>`;
                 });
                 bodyHtml += '</tr>';
@@ -1129,13 +1176,13 @@
                     const rowIdx = parseInt(e.target.getAttribute('data-row'));
                     const colKey = e.target.getAttribute('data-col');
                     let rawVal = processedData[rowIdx][colKey];
-                    
+
                     if (typeof rawVal === 'string') {
                         try {
                             rawVal = JSON.parse(rawVal);
-                        } catch (e) {}
+                        } catch (e) { }
                     }
-                    
+
                     const prettyJson = JSON.stringify(rawVal, null, 2);
                     modalTitle.textContent = `Column "${colKey}" Detail (Row ${rowIdx + 1})`;
                     modalCode.innerHTML = syntaxHighlight(prettyJson);
@@ -1192,12 +1239,12 @@
             originalFilename = '';
             originalSize = 0;
             fileInput.value = '';
-            
+
             resultCard.style.display = 'none';
             loadingCard.style.display = 'none';
             uploadCard.style.display = 'block';
             clearError();
-            
+
             // Reset tab button states
             tabBtns.forEach(btn => btn.classList.remove('active'));
             tabContents.forEach(c => c.classList.remove('active'));
@@ -1208,18 +1255,18 @@
         // Client-side JSON file download
         btnDownloadJson.addEventListener('click', () => {
             if (!processedData.length) return;
-            
+
             const jsonString = JSON.stringify(processedData, null, 2);
             const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
-            
+
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
-            
+
             const nameWithoutExt = originalFilename.substring(0, originalFilename.lastIndexOf('.')) || originalFilename;
             link.setAttribute('href', url);
             link.setAttribute('download', `decoded_${nameWithoutExt}.json`);
             link.style.visibility = 'hidden';
-            
+
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -1228,18 +1275,18 @@
         // Client-side CSV file download
         btnDownloadCsv.addEventListener('click', () => {
             if (!processedData.length) return;
-            
+
             const csvContent = convertToCSV(processedData);
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            
+
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
-            
+
             const nameWithoutExt = originalFilename.substring(0, originalFilename.lastIndexOf('.')) || originalFilename;
             link.setAttribute('href', url);
             link.setAttribute('download', `decoded_${nameWithoutExt}.csv`);
             link.style.visibility = 'hidden';
-            
+
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -1248,20 +1295,20 @@
         // Helper to convert JSON array to CSV format
         function convertToCSV(objArray) {
             if (!objArray || !objArray.length) return '';
-            
+
             const keys = Object.keys(objArray[0]);
-            
+
             const csvRows = [];
-            
+
             // Header Row
             csvRows.push(keys.join(','));
-            
+
             // Body Rows
             objArray.forEach(row => {
                 const values = keys.map(key => {
                     const val = row[key];
                     let strVal = '';
-                    
+
                     if (val === null || val === undefined) {
                         strVal = '';
                     } else if (typeof val === 'object') {
@@ -1269,7 +1316,7 @@
                     } else {
                         strVal = String(val);
                     }
-                    
+
                     // Escape double quotes and enclose string if it contains commas, newlines, or quotes
                     const escaped = strVal.replace(/"/g, '""');
                     if (escaped.includes(',') || escaped.includes('"') || escaped.includes('\n') || escaped.includes('\r')) {
@@ -1279,9 +1326,10 @@
                 });
                 csvRows.push(values.join(','));
             });
-            
+
             return csvRows.join('\r\n');
         }
     </script>
 </body>
+
 </html>
