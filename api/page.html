@@ -905,7 +905,9 @@
                         return;
                     }
 
-                    const batchSize = 10000;
+                    // Reduced batch size from 10000 to 2000. 
+                    // 10,000 rows was creating a JSON string larger than 4MB!
+                    const batchSize = 2000;
                     
                     document.querySelector('.loading-text').textContent = `Preparing to process ${rows.length} records...`;
                     
