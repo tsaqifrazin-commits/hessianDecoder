@@ -653,6 +653,76 @@
             font-size: 0.8rem;
             color: rgba(255, 255, 255, 0.2);
         }
+
+        /* Input Mode Tabs */
+        .input-tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .input-tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 500;
+            padding: 0.75rem 0.5rem;
+            cursor: pointer;
+            position: relative;
+            transition: color 0.2s;
+        }
+
+        .input-tab-btn:hover {
+            color: white;
+        }
+
+        .input-tab-btn.active {
+            color: var(--primary);
+        }
+
+        .input-tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--primary);
+            box-shadow: 0 0 10px var(--primary);
+        }
+
+        .pastezone {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        #json-input {
+            width: 100%;
+            height: 250px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-main);
+            font-family: 'Fira Code', monospace;
+            font-size: 0.875rem;
+            padding: 1rem;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        #json-input:focus {
+            border-color: var(--primary);
+        }
+        
+        .pastezone-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
     </style>
 </head>
 
@@ -674,6 +744,13 @@
 
         <!-- 1. Upload View -->
         <div id="upload-card" class="card">
+            <!-- Tabs to toggle input modes -->
+            <div class="input-tabs">
+                <button class="input-tab-btn active" id="btn-tab-csv">Upload CSV</button>
+                <button class="input-tab-btn" id="btn-tab-json">Paste JSON</button>
+            </div>
+
+            <!-- CSV Upload Zone -->
             <div id="dropzone" class="dropzone">
                 <input type="file" id="file-input" class="file-input" accept=".csv" />
 
@@ -689,6 +766,18 @@
                 <p>or click to browse your computer</p>
 
                 <button type="button" class="btn-select" id="btn-browse">Select CSV File</button>
+            </div>
+
+            <!-- JSON Paste Zone -->
+            <div id="json-pastezone" class="pastezone" style="display: none;">
+                <textarea id="json-input" placeholder='Paste your JSON content here. E.g.:
+[
+  { "info": "base64_encoded_hessian_payload_here..." }
+]
+Or paste a raw base64 Hessian string directly...'></textarea>
+                <div class="pastezone-actions">
+                    <button type="button" class="btn-select" id="btn-process-json">Decode Paste</button>
+                </div>
             </div>
         </div>
 
@@ -832,6 +921,13 @@
         const errorMessage = document.getElementById('error-message');
         const btnReset = document.getElementById('btn-reset');
 
+        // Paste JSON Elements
+        const btnTabCsv = document.getElementById('btn-tab-csv');
+        const btnTabJson = document.getElementById('btn-tab-json');
+        const jsonPastezone = document.getElementById('json-pastezone');
+        const jsonInput = document.getElementById('json-input');
+        const btnProcessJson = document.getElementById('btn-process-json');
+
         // Stats
         const summaryFilename = document.getElementById('summary-filename');
         const summaryRows = document.getElementById('summary-rows');
@@ -926,7 +1022,74 @@
             errorBanner.style.display = 'none';
         }
 
-        // AJAX upload using fetch in batches via PapaParse
+        // Reusable core logic to send rows to backend batches
+        async function processRows(rows) {
+            if (!rows || rows.length === 0) {
+                showError('No records to process.');
+                loadingCard.style.display = 'none';
+                uploadCard.style.display = 'block';
+                return;
+            }
+
+            const batchSize = 2000;
+            const CONCURRENCY = 10; // max parallel calls at once
+
+            document.querySelector('.loading-text').textContent = `Preparing to process ${rows.length} records...`;
+
+            try {
+                // Split into batches
+                const batches = [];
+                for (let i = 0; i < rows.length; i += batchSize) {
+                    batches.push(rows.slice(i, i + batchSize));
+                }
+
+                const totalBatches = batches.length;
+                let completedBatches = 0;
+                let allProcessed = [];
+
+                // Process in groups of CONCURRENCY
+                for (let i = 0; i < batches.length; i += CONCURRENCY) {
+                    const group = batches.slice(i, i + CONCURRENCY);
+
+                    const promises = group.map(batch =>
+                        fetch('/process-batch', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(batch)
+                        })
+                            .then(async (response) => {
+                                const data = await response.json();
+                                if (!response.ok || !data.success) {
+                                    throw new Error(data.error || 'Server error while processing batch.');
+                                }
+                                completedBatches++;
+                                document.querySelector('.loading-text').textContent =
+                                    `Processed ${completedBatches} of ${totalBatches} batches...`;
+                                return data.data;
+                            })
+                    );
+
+                    // Wait for this group of 10 to finish before firing the next group
+                    const groupResults = await Promise.all(promises);
+                    groupResults.forEach(batchResult => {
+                        allProcessed = allProcessed.concat(batchResult);
+                    });
+                }
+
+                processedData = allProcessed;
+                document.querySelector('.loading-text').textContent = 'Processing...';
+                displayResults();
+
+            } catch (err) {
+                console.error(err);
+                showError(err.message || 'An error occurred during batch processing.');
+                document.querySelector('.loading-text').textContent = 'Processing...';
+                loadingCard.style.display = 'none';
+                uploadCard.style.display = 'block';
+            }
+        }
+
+        // Start processing the file
         function uploadFile(file) {
             clearError();
 
@@ -939,70 +1102,7 @@
                 header: true,
                 skipEmptyLines: true,
                 complete: async function (results) {
-                    const rows = results.data;
-                    if (rows.length === 0) {
-                        showError('The uploaded CSV is empty or invalid.');
-                        loadingCard.style.display = 'none';
-                        uploadCard.style.display = 'block';
-                        return;
-                    }
-
-                    const batchSize = 2000;
-                    const CONCURRENCY = 10; // max parallel calls at once
-
-                    document.querySelector('.loading-text').textContent = `Preparing to process ${rows.length} records...`;
-
-                    try {
-                        // Split into batches
-                        const batches = [];
-                        for (let i = 0; i < rows.length; i += batchSize) {
-                            batches.push(rows.slice(i, i + batchSize));
-                        }
-
-                        const totalBatches = batches.length;
-                        let completedBatches = 0;
-                        let allProcessed = [];
-
-                        // Process in groups of CONCURRENCY
-                        for (let i = 0; i < batches.length; i += CONCURRENCY) {
-                            const group = batches.slice(i, i + CONCURRENCY);
-
-                            const promises = group.map(batch =>
-                                fetch('/process-batch', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify(batch)
-                                })
-                                    .then(async (response) => {
-                                        const data = await response.json();
-                                        if (!response.ok || !data.success) {
-                                            throw new Error(data.error || 'Server error while processing CSV batch.');
-                                        }
-                                        completedBatches++;
-                                        document.querySelector('.loading-text').textContent =
-                                            `Processed ${completedBatches} of ${totalBatches} batches...`;
-                                        return data.data;
-                                    })
-                            );
-
-                            // Wait for this group of 10 to finish before firing the next group
-                            const groupResults = await Promise.all(promises);
-                            groupResults.forEach(batchResult => {
-                                allProcessed = allProcessed.concat(batchResult);
-                            });
-                        }
-
-                        processedData = allProcessed;
-                        document.querySelector('.loading-text').textContent = 'Processing...';
-                        displayResults();
-
-                    } catch (err) {
-                        console.error(err);
-                        showError(err.message || 'An error occurred during batch processing.');
-                        document.querySelector('.loading-text').textContent = 'Processing...';
-                        loadingCard.style.display = 'none';
-                        uploadCard.style.display = 'block';
-                    }
+                    await processRows(results.data);
                 },
                 error: function (err) {
                     console.error("PapaParse error:", err);
@@ -1012,6 +1112,77 @@
                     uploadCard.style.display = 'block';
                 }
             });
+        }
+
+        // Handle pasted JSON input processing
+        function handleJsonSubmit() {
+            clearError();
+            const input = jsonInput.value.trim();
+            if (!input) {
+                showError('Please paste some JSON or base64 text.');
+                return;
+            }
+
+            let rows = [];
+            originalFilename = 'pasted_data.json';
+            originalSize = new Blob([input]).size;
+
+            // Switch to loading state
+            uploadCard.style.display = 'none';
+            loadingCard.style.display = 'flex';
+            document.querySelector('.loading-text').textContent = 'Parsing JSON...';
+
+            try {
+                // 1. Try parsing input as JSON first
+                const parsed = JSON.parse(input);
+                if (Array.isArray(parsed)) {
+                    if (parsed.length === 0) {
+                        showError('JSON array is empty.');
+                        loadingCard.style.display = 'none';
+                        uploadCard.style.display = 'block';
+                        return;
+                    }
+                    // Handle array of objects (like CSV rows)
+                    if (typeof parsed[0] === 'object' && parsed[0] !== null) {
+                        rows = parsed;
+                    } 
+                    // Handle array of raw base64 strings
+                    else if (typeof parsed[0] === 'string') {
+                        rows = parsed.map(str => ({ info: str }));
+                    } else {
+                        showError('Unsupported JSON array content.');
+                        loadingCard.style.display = 'none';
+                        uploadCard.style.display = 'block';
+                        return;
+                    }
+                } else if (typeof parsed === 'object' && parsed !== null) {
+                    // Single row object
+                    rows = [parsed];
+                } else if (typeof parsed === 'string') {
+                    // String enclosed in JSON double quotes
+                    rows = [{ info: parsed }];
+                } else {
+                    showError('Unsupported JSON format. Expected object or array.');
+                    loadingCard.style.display = 'none';
+                    uploadCard.style.display = 'block';
+                    return;
+                }
+            } catch (jsonErr) {
+                // 2. JSON parsing failed, check if it's a raw base64 string
+                const cleaned = input.replace(/\s/g, '');
+                const isBase64 = /^[a-zA-Z0-9+/]*={0,2}$/.test(cleaned);
+                if (isBase64 && cleaned.length > 10) {
+                    rows = [{ info: cleaned }];
+                    originalFilename = 'pasted_base64.txt';
+                } else {
+                    showError('Invalid JSON format. Check for syntax errors. If pasting raw base64, ensure no invalid characters.');
+                    loadingCard.style.display = 'none';
+                    uploadCard.style.display = 'block';
+                    return;
+                }
+            }
+
+            processRows(rows);
         }
 
         // Display parsed results
@@ -1233,12 +1404,33 @@
                 .replace(/'/g, "&#039;");
         }
 
+        // Input Tabs Event Listeners
+        btnTabCsv.addEventListener('click', () => {
+            btnTabCsv.classList.add('active');
+            btnTabJson.classList.remove('active');
+            dropzone.style.display = 'block';
+            jsonPastezone.style.display = 'none';
+            clearError();
+        });
+
+        btnTabJson.addEventListener('click', () => {
+            btnTabJson.classList.add('active');
+            btnTabCsv.classList.remove('active');
+            dropzone.style.display = 'none';
+            jsonPastezone.style.display = 'flex';
+            clearError();
+        });
+
+        // Parse Paste action click
+        btnProcessJson.addEventListener('click', handleJsonSubmit);
+
         // Reset App State
         btnReset.addEventListener('click', () => {
             processedData = [];
             originalFilename = '';
             originalSize = 0;
             fileInput.value = '';
+            jsonInput.value = '';
 
             resultCard.style.display = 'none';
             loadingCard.style.display = 'none';
