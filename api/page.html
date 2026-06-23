@@ -1031,8 +1031,17 @@ Or paste a raw base64 Hessian string directly...'></textarea>
                 return;
             }
 
-                    const batchSize = 200;
-                    const CONCURRENCY = 10; // max parallel calls at once
+            // Calculate dynamic batch size targeting ~1.5MB per batch
+            // based on original size of the file/paste.
+            const sizeInBytes = originalSize || 1024; // fallback to 1KB
+            const avgRowSize = sizeInBytes / rows.length;
+            const targetBatchSizeBytes = 1.5 * 1024 * 1024; // 1.5MB
+            let batchSize = Math.floor(targetBatchSizeBytes / avgRowSize);
+            
+            // Clamp batch size between 500 and 5000 rows
+            batchSize = Math.max(500, Math.min(batchSize, 5000));
+            
+            const CONCURRENCY = 6; // max parallel calls at once (browser domain limit is 6)
 
             document.querySelector('.loading-text').textContent = `Preparing to process ${rows.length} records...`;
 
@@ -1045,35 +1054,52 @@ Or paste a raw base64 Hessian string directly...'></textarea>
 
                 const totalBatches = batches.length;
                 let completedBatches = 0;
+                const results = new Array(totalBatches);
+
+                let nextBatchIdx = 0;
+
+                const runWorker = async () => {
+                    while (nextBatchIdx < totalBatches) {
+                        const currentIdx = nextBatchIdx++;
+                        const batch = batches[currentIdx];
+
+                        try {
+                            const response = await fetch('/process-batch', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(batch)
+                            });
+
+                            const data = await response.json();
+                            if (!response.ok || !data.success) {
+                                throw new Error(data.error || 'Server error while processing batch.');
+                            }
+
+                            results[currentIdx] = data.data;
+                            completedBatches++;
+                            document.querySelector('.loading-text').textContent =
+                                `Processed ${completedBatches} of ${totalBatches} batches...`;
+                        } catch (err) {
+                            throw err; // propagates to the try-catch block
+                        }
+                    }
+                };
+
+                // Run workers in parallel
+                const workerPromises = [];
+                const numWorkers = Math.min(CONCURRENCY, totalBatches);
+                for (let i = 0; i < numWorkers; i++) {
+                    workerPromises.push(runWorker());
+                }
+
+                await Promise.all(workerPromises);
+
+                // Flatten and collect results in order
                 let allProcessed = [];
-
-                // Process in groups of CONCURRENCY
-                for (let i = 0; i < batches.length; i += CONCURRENCY) {
-                    const group = batches.slice(i, i + CONCURRENCY);
-
-                    const promises = group.map(batch =>
-                        fetch('/process-batch', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(batch)
-                        })
-                            .then(async (response) => {
-                                const data = await response.json();
-                                if (!response.ok || !data.success) {
-                                    throw new Error(data.error || 'Server error while processing batch.');
-                                }
-                                completedBatches++;
-                                document.querySelector('.loading-text').textContent =
-                                    `Processed ${completedBatches} of ${totalBatches} batches...`;
-                                return data.data;
-                            })
-                    );
-
-                    // Wait for this group of 10 to finish before firing the next group
-                    const groupResults = await Promise.all(promises);
-                    groupResults.forEach(batchResult => {
-                        allProcessed = allProcessed.concat(batchResult);
-                    });
+                for (let i = 0; i < totalBatches; i++) {
+                    if (results[i]) {
+                        allProcessed = allProcessed.concat(results[i]);
+                    }
                 }
 
                 processedData = allProcessed;
@@ -1243,13 +1269,19 @@ Or paste a raw base64 Hessian string directly...'></textarea>
         // Render JSON preview
         function renderJSONPreview() {
             let dataSlice = processedData;
+            const isFullRender = previewLimit >= processedData.length;
             if (processedData.length > previewLimit) {
                 dataSlice = processedData.slice(0, previewLimit);
             }
 
             // Highlight and show
             const formatted = JSON.stringify(dataSlice, null, 2);
-            codeOutput.innerHTML = syntaxHighlight(formatted);
+            if (isFullRender && dataSlice.length > 500) {
+                // Large full render - render as plain text to avoid freezing the browser with HTML parsing
+                codeOutput.textContent = formatted;
+            } else {
+                codeOutput.innerHTML = syntaxHighlight(formatted);
+            }
         }
 
         // Tab Selection Event Listeners
@@ -1266,6 +1298,10 @@ Or paste a raw base64 Hessian string directly...'></textarea>
 
         // Show all JSON records
         btnShowAll.addEventListener('click', () => {
+            if (processedData.length > 5000) {
+                const proceed = confirm(`Warning: Rendering ${processedData.length} records in the browser may cause it to temporarily lag. We recommend downloading the JSON file directly.\n\nDo you still want to load all records in the preview?`);
+                if (!proceed) return;
+            }
             previewLimit = processedData.length;
             previewBanner.style.display = 'none';
             codeOutput.innerHTML = 'Rendering all records... Please wait...';
